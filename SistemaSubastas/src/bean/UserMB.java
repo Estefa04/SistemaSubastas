@@ -58,16 +58,17 @@ public class UserMB
 		return "/administrador/datosAdmin";
 	}
 
-	public String prepararRecuperarContraseña()
+	public String prepararRecuperarContraseÃ±a()
 	{
 		userPass = new User();
-		return "/usuarios/recuperarContraseña";
+		return "/usuarios/recuperarContraseÃ±a";
 	}
 
-	public String prepararCambioContraseña()
+	public String prepararCambioContraseÃ±a()
 	{
-		userPass = new User();
-		return "/usuarios/cambiarContraseña";
+		UserService service = new UserService();
+		userPass = service.getUser(loginUser.getUserName());
+		return "/usuarios/cambiarContraseÃ±a";
 	}
 
 	public String prepararIngresoProveedor(String userName)
@@ -101,7 +102,7 @@ public class UserMB
 		{
 			user.setDateLastPassword(new Date());
 			String pass = EnviarCorreo.sendEmail(user.getEmailAddress());
-			user.setPassword(pass);
+			user.setPassword(Cifrado.getStringMessageDigest(pass, Cifrado.MD5)+"$");
 			service.nuevo(user);
 
 			audit.adicionarAudit("Admin", "CREATE", "User", user.getId());
@@ -154,10 +155,8 @@ public class UserMB
 		String pagina = "";
 		UserService service = new UserService();
 		User usuarioTemp = service.getUser(loginUser.getUserName());
-		System.out.println(usuarioTemp.getUserType() + " - " + usuarioTemp.getPassword());
-		String pass = loginUser.getPassword();
-		loginUser.setPassword(Cifrado.getStringMessageDigest("" + pass, Cifrado.MD5) + "%");
-		String password = loginUser.getPassword();
+		
+		System.out.println(Cifrado.getStringMessageDigest(loginUser.getPassword(), Cifrado.MD5));
 
 		if (usuarioTemp.getPassword().endsWith("$"))
 		{
@@ -171,20 +170,19 @@ public class UserMB
 				boolean verify = VerifyRecaptcha.verify(gRecaptchaResponse);
 				if (verify)
 				{
-					pagina = prepararCambioContraseña();
+					pagina = prepararCambioContraseÃ±a();
 				} else
 				{
-					mensajeError = "Verificación del CAPTCHA invalida";
+					mensajeError = "VerificaciÃ³n del CAPTCHA invalida";
 				}
 			} catch (Exception e)
 			{
 			}
 
-			pagina = prepararCambioContraseña();
+			pagina = prepararCambioContraseÃ±a();
 		} else
 		{
 
-			System.out.println("Entra al else         " + usuarioTemp.getUserType() + "   " + loginUser.getPassword());
 			
 			if (usuarioTemp.getUserType().equalsIgnoreCase("admin") && usuarioTemp.getPassword().equals(loginUser.getPassword()))
 			{
@@ -200,15 +198,15 @@ public class UserMB
 						pagina = "/administrador/indexAdmin";
 					} else
 					{
-						mensajeError = "Verificación del CAPTCHA invalida";
+						mensajeError = "VerificaciÃ³n del CAPTCHA invalida";
 					}
 				} catch (Exception e)
 				{
 				}
 
 			}else if (usuarioTemp.getUserType().equalsIgnoreCase("POSTOR")
-					&& usuarioTemp.getPassword().equalsIgnoreCase(password)
-					&& usuarioTemp.getActive().equalsIgnoreCase("ACTIVO"))
+					&& usuarioTemp.getPassword().equalsIgnoreCase(Cifrado.getStringMessageDigest(loginUser.getPassword(), Cifrado.MD5))
+					&& usuarioTemp.getActive().equalsIgnoreCase("ACTIVE"))
 			{
 
 				try
@@ -221,15 +219,15 @@ public class UserMB
 						pagina = prepararIngresoPostor(usuarioTemp.getUserName());
 					} else
 					{
-						mensajeError = "Verificación del CAPTCHA invalida";
+						mensajeError = "VerificaciÃ³n del CAPTCHA invalida";
 					}
 				} catch (Exception e)
 				{
 				}
 
 			} else if (usuarioTemp.getUserType().equalsIgnoreCase("PROVEEDOR")
-					&& usuarioTemp.getPassword().equalsIgnoreCase(password)
-					&& usuarioTemp.getActive().equalsIgnoreCase("ACTIVO"))
+					&& usuarioTemp.getPassword().equalsIgnoreCase(Cifrado.getStringMessageDigest(loginUser.getPassword(), Cifrado.MD5))
+					&& usuarioTemp.getActive().equalsIgnoreCase("ACTIVE"))
 			{
 
 				try
@@ -242,7 +240,7 @@ public class UserMB
 						pagina = prepararIngresoProveedor(usuarioTemp.getUserName());
 					} else
 					{
-						mensajeError = "Verificación del CAPTCHA invalida";
+						mensajeError = "VerificaciÃ³n del CAPTCHA invalida";
 					}
 				} catch (Exception e)
 				{
@@ -250,36 +248,38 @@ public class UserMB
 			}
 			else
 			{
-				FacesContext context = FacesContext.getCurrentInstance();
-				context.addMessage(null, new FacesMessage("Cuidado", mensajeError));
-				mensajeError = "Validación de usuario o contraseña incorrectas";
+				
+				mensajeError = "ValidaciÃ³n de usuario o contraseÃ±a incorrectas";
 				usuarioTemp.setFailedAttempts(+1);
 			}
 		}
 		if (usuarioTemp.getFailedAttempts() == 3)
 		{
-			mensajeError = "Señor usuario usted exedio el número de intentos de ingreso al sistema. Su estado ahora es INACTIVO";
+			mensajeError = "SeÃ±or usuario usted exedio el nÃºmero de intentos de ingreso al sistema. Su estado ahora es INACTIVO";
 			usuarioTemp.setActive("INACTIVE");
 			audit.adicionarAudit(usuarioTemp.getUserName(), "DELETE", "User", 0);
 		}
 
 		audit.adicionarAudit(usuarioTemp.getUserName(), "LOGIN", "---", 0);
-
 		
+		
+		FacesContext context = FacesContext.getCurrentInstance();
+		context.addMessage(null, new FacesMessage("Cuidado", mensajeError));
 
 		return pagina;
 	}
 
-	public String recuperarContraseña()
+	public String recuperarContraseÃ±a()
 	{
 		UserService service = new UserService();
 		User userTemp = service.getUser(userPass.getUserName());
+		userTemp.setPassword(Cifrado.getStringMessageDigest(userPass.getPassword(), Cifrado.MD5));
 		service.actualizar(userTemp);
 		return "/administrador/indexAdmin";
 
 	}
 
-	public void cambiarContraseña()
+	public void cambiarContraseÃ±a()
 	{
 		UserService service = new UserService();
 		User userTemp = new User();
